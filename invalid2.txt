@@ -1,0 +1,13 @@
+{
+    int a, b[5;
+    boolean flag
+    
+    undeclared = 10;
+    if (a > b {
+        while x < 10)
+            a = a +;
+    }
+    
+    float c[2][;
+    c = true && false;
+}

@@ -1,0 +1,366 @@
+grammar DragonLang;
+
+options { language = Java; }
+
+@header {
+    import java.util.*;
+}
+
+@members {
+    // =============== Symbol table & scopes ===============
+
+    private Env currentEnv = null;    // current environment
+    private int scopeLevel = 0;       // nesting level of Env chain
+
+    // Stack: whether each parsed block actually pushed a scope
+    private java.util.Deque<Boolean> blockPushed = new java.util.ArrayDeque<>();
+
+    // Block nesting depth for { ... }:
+    //  blockDepth == 0 : program's outermost block
+    private int blockDepth = 0;
+
+    // Called at start of program
+    public void initializeGlobalScope() {
+        currentEnv = new Env(null);  // global scope (outermost)
+        scopeLevel = 0;
+        blockDepth = 0;
+    }
+
+    // Create new Env for nested block
+    public void enterScope() {
+        currentEnv = new Env(currentEnv);
+        scopeLevel++;
+        System.out.println(">>> Entering new scope (Level " + scopeLevel + ")");
+    }
+
+    // Pop Env at end of nested block
+    public void exitScope() {
+        if (currentEnv != null && currentEnv.prev != null) {
+            currentEnv = currentEnv.prev;
+            System.out.println(">>> Exiting scope (returning to Level " + (scopeLevel - 1) + ")");
+            scopeLevel--;
+        }
+    }
+
+    private void addIdentifier(String name, Type t) {
+        if (currentEnv == null || t == null) return;
+        Symbol sym = new Symbol(name, t);     // Symbol(String, Type)
+        currentEnv.put(name, sym);
+        System.out.println(">>> Added to symbol table: " + sym);
+    }
+
+    private void noteLookup(String name) {
+        if (currentEnv == null) return;
+        Symbol s = currentEnv.get(name);
+        if (s == null) {
+            System.out.println(">>> Warning: Undeclared identifier '" + name + "'");
+        } else {
+            System.out.println(">>> Found identifier: " + s);
+        }
+    }
+
+    public void printFinalSymbolTable() {
+        System.out.println("\n================================================================================");
+        System.out.println("=== FINAL SYMBOL TABLE STATE ===\n");
+        if (currentEnv != null) {
+            currentEnv.printSymbolTable();   // your Env.printSymbolTable()
+        }
+        System.out.println("================================================================================");
+    }
+
+    // Build a base Type from basic token text
+    private Type makeBase(String txt) {
+        switch (txt) {
+            case "int":     return new Type(Type.BaseType.INT);
+            case "float":   return new Type(Type.BaseType.FLOAT);
+            case "boolean": return new Type(Type.BaseType.BOOLEAN);
+            default:        return null;
+        }
+    }
+}
+
+// =======================================================
+// PARSER RULES (Appendix A.1-style grammar)
+// =======================================================
+
+// program → block EOF
+program
+    : {
+          initializeGlobalScope();
+          System.out.println("program -> block");
+      }
+      block EOF
+    ;
+
+// block → { decls stmts }
+// Top-level block uses GLOBAL env (no new scope).
+// Nested blocks push/pop a new Env.
+block
+    :   LBRACE
+        {
+            System.out.println("block -> { decls stmts }");
+
+            boolean didPush;
+            if (blockDepth == 0) {
+                // Outermost block of program: use existing global Env
+                didPush = false;
+            } else {
+                // Nested block: create a new Env
+                enterScope();
+                didPush = true;
+            }
+            blockDepth++;
+            blockPushed.push(Boolean.valueOf(didPush));
+        }
+        decls
+        stmts
+        RBRACE
+        {
+            blockDepth--;
+            boolean didPushExit = blockPushed.pop().booleanValue();
+            if (didPushExit) {
+                exitScope();
+            }
+        }
+    ;
+
+// decls → decls decl | ε
+decls
+    :   ( decl { System.out.println("decls -> decls decl"); } )*
+        { System.out.println("decls -> epsilon"); }
+    ;
+
+// --------- decl with error production (Dragon-style) ---------
+// decl → type id_list ; | (error production)
+decl
+    :   t=type_rule
+        id_list[$t.val]
+        SEMICOLON
+        {
+            System.out.println("decl -> type id_list ;");
+        }
+
+    // Error production: if a declaration is malformed, consume
+    // tokens up to the next ';' and continue.
+    |   sync_decl
+        {
+            System.out.println(">>> Error production in decl: skipped invalid declaration up to ';'");
+        }
+    ;
+
+// sync_decl: used only by the error production above
+sync_decl
+    :   ( ~SEMICOLON )* SEMICOLON
+    ;
+
+// id_list → ID (',' ID)*
+id_list [Type t]
+    :   ID { addIdentifier($ID.text, $t); }
+        ( COMMA ID { addIdentifier($ID.text, $t); } )*
+    ;
+
+// type → basic '[' NUM ']' ...  | basic
+type_rule returns [Type val]
+    :   b=basic
+        {
+            $val = makeBase($b.text);
+        }
+        ( LBRACKET NUM RBRACKET
+            {
+                $val.addDimension(Integer.parseInt($NUM.text));
+            }
+        )*
+    ;
+
+// basic → int | float | boolean
+basic
+    :   INT
+    |   FLOAT
+    |   BOOLEAN
+    ;
+
+// stmts → stmts stmt | ε
+stmts
+    :   ( stmt { System.out.println("stmts -> stmts stmt"); } )*
+        { System.out.println("stmts -> epsilon"); }
+    ;
+
+// --------- stmt with error production (Dragon-style) ---------
+// stmt → loc = bool ; | if (...) | while (...) | do...while | break ; | block | (error)
+stmt
+    :   // assignment
+        loc ASSIGN bool SEMICOLON
+        { System.out.println("stmt -> loc = bool ;"); }
+
+    |   // if / if-else
+        IF LPAREN bool RPAREN stmt
+        (
+            ELSE stmt { System.out.println("stmt -> if ( bool ) stmt else stmt"); }
+        |
+            { System.out.println("stmt -> if ( bool ) stmt"); }
+        )
+
+    |   // while
+        WHILE LPAREN bool RPAREN stmt
+        { System.out.println("stmt -> while ( bool ) stmt"); }
+
+    |   // do-while
+        DO stmt WHILE LPAREN bool RPAREN SEMICOLON
+        { System.out.println("stmt -> do stmt while ( bool ) ;"); }
+
+    |   // break
+        BREAK SEMICOLON
+        { System.out.println("stmt -> break ;"); }
+
+    |   // nested block
+        block
+        { System.out.println("stmt -> block"); }
+
+    // Error production: if nothing else matches, consume up to ';'
+    |   sync_stmt
+        {
+            System.out.println(">>> Error production in stmt: skipped invalid statement up to ';'");
+        }
+    ;
+
+// sync_stmt: used only by the stmt error production
+sync_stmt
+    :   ( ~SEMICOLON )* SEMICOLON
+    ;
+
+// loc → ID ('[' bool ']')*
+loc
+    :   ID
+        {
+            noteLookup($ID.text);
+        }
+        ( LBRACKET bool RBRACKET
+            { System.out.println("loc -> loc [ bool ]"); }
+        )*
+        { System.out.println("loc -> id"); }
+    ;
+
+// bool → bool || join | join
+bool
+    :   join ( OR join { System.out.println("bool -> bool || join"); } )*
+        { System.out.println("bool -> join"); }
+    ;
+
+// join → join && equality | equality
+join
+    :   equality ( AND equality { System.out.println("join -> join && equality"); } )*
+        { System.out.println("join -> equality"); }
+    ;
+
+// equality → equality (== | !=) rel | rel
+equality
+    :   rel
+        (
+            EQ rel { System.out.println("equality -> equality == rel"); }
+          | NE rel { System.out.println("equality -> equality != rel"); }
+        )*
+        { System.out.println("equality -> rel"); }
+    ;
+
+// rel → expr (< | <= | >= | >) expr | expr
+rel
+    :   expr
+        (
+            LT expr { System.out.println("rel -> expr < expr"); }
+          | LE expr { System.out.println("rel -> expr <= expr"); }
+          | GE expr { System.out.println("rel -> expr >= expr"); }
+          | GT expr { System.out.println("rel -> expr > expr"); }
+        )?
+        { System.out.println("rel -> expr"); }
+    ;
+
+// expr → expr (+ | -) term | term
+expr
+    :   term
+        (
+            PLUS term  { System.out.println("expr -> expr + term"); }
+          | MINUS term { System.out.println("expr -> expr - term"); }
+        )*
+        { System.out.println("expr -> term"); }
+    ;
+
+// term → term (* | /) unary | unary
+term
+    :   unary
+        (
+            TIMES  unary { System.out.println("term -> term * unary"); }
+          | DIVIDE unary { System.out.println("term -> term / unary"); }
+        )*
+        { System.out.println("term -> unary"); }
+    ;
+
+// unary → ! unary | - unary | factor
+unary
+    :   NOT   unary { System.out.println("unary -> ! unary"); }
+    |   MINUS unary { System.out.println("unary -> - unary"); }
+    |   factor      { System.out.println("unary -> factor"); }
+    ;
+
+// factor → ( bool ) | loc | num | real | true | false
+factor
+    :   LPAREN bool RPAREN
+        { System.out.println("factor -> ( bool )"); }
+    |   loc
+        { System.out.println("factor -> loc"); }
+    |   NUM
+        { System.out.println("factor -> num"); }
+    |   REAL
+        { System.out.println("factor -> real"); }
+    |   TRUE
+        { System.out.println("factor -> true"); }
+    |   FALSE
+        { System.out.println("factor -> false"); }
+    ;
+
+// =======================================================
+// LEXER RULES
+// =======================================================
+
+IF      : 'if' ;
+ELSE    : 'else' ;
+WHILE   : 'while' ;
+DO      : 'do' ;
+BREAK   : 'break' ;
+TRUE    : 'true' ;
+FALSE   : 'false' ;
+
+INT     : 'int' ;
+FLOAT   : 'float' ;
+BOOLEAN : 'boolean' ;
+
+ASSIGN  : '=' ;
+LT      : '<' ;
+GT      : '>' ;
+LE      : '<=' ;
+GE      : '>=' ;
+EQ      : '==' ;
+NE      : '!=' ;
+AND     : '&&' ;
+OR      : '||' ;
+NOT     : '!' ;
+PLUS    : '+' ;
+MINUS   : '-' ;
+TIMES   : '*' ;
+DIVIDE  : '/' ;
+
+SEMICOLON : ';' ;
+COMMA     : ',' ;
+LPAREN    : '(' ;
+RPAREN    : ')' ;
+LBRACE    : '{' ;
+RBRACE    : '}' ;
+LBRACKET  : '[' ;
+RBRACKET  : ']' ;
+
+NUM     : [0-9]+ ;
+REAL    : [0-9]+ '.' [0-9]+ ( [eE] [+\-]? [0-9]+ )? ;
+ID      : [a-zA-Z_] [a-zA-Z_0-9]* ;
+
+LINE_COMMENT : '//' ~[\r\n]* -> skip ;
+BLOCK_COMMENT: '/*' .*? '*/' -> skip ;
+WS      : [ \t\r\n\f]+ -> skip ;

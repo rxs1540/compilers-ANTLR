@@ -1,0 +1,105 @@
+grammar DragonLang;
+
+options {
+    language = Java;
+}
+
+@header {
+    import java.util.*;
+}
+
+@members {
+    private Set<String> symbolTable = new HashSet<>();
+    
+    public void addToSymbolTable(String id) {
+        symbolTable.add(id);
+    }
+    
+    public void printSymbolTable() {
+        System.out.println("\n--- Symbol Table ---");
+        if (symbolTable.isEmpty()) {
+            System.out.println("(empty)");
+        } else {
+            List<String> sortedSymbols = new ArrayList<>(symbolTable);
+            Collections.sort(sortedSymbols);
+            for (String symbol : sortedSymbols) {
+                System.out.println(symbol);
+            }
+        }
+    }
+}
+
+// Parser Rules
+program : block EOF ;
+block : LBRACE decls stmts RBRACE ;
+decls : decls decl | ;
+decl : type ID SEMICOLON ;
+type : type LBRACKET NUM RBRACKET | basic ;
+basic : INT | FLOAT | BOOLEAN ;
+stmts : stmts stmt | ;
+stmt : loc ASSIGN bool SEMICOLON
+     | IF LPAREN bool RPAREN stmt
+     | IF LPAREN bool RPAREN stmt ELSE stmt
+     | WHILE LPAREN bool RPAREN stmt
+     | DO stmt WHILE LPAREN bool RPAREN SEMICOLON
+     | BREAK SEMICOLON
+     | block
+     ;
+loc : loc LBRACKET bool RBRACKET | ID ;
+bool : bool OR join | join ;
+join : join AND equality | equality ;
+equality : equality EQ rel | equality NE rel | rel ;
+rel : expr LT expr | expr LE expr | expr GE expr | expr GT expr | expr ;
+expr : expr PLUS term | expr MINUS term | term ;
+term : term TIMES unary | term DIVIDE unary | unary ;
+unary : NOT unary | MINUS unary | factor ;
+factor : LPAREN bool RPAREN | loc | NUM | REAL | TRUE | FALSE ;
+
+// Lexer Rules
+IF : 'if' ;
+ELSE : 'else' ;
+WHILE : 'while' ;
+DO : 'do' ;
+BREAK : 'break' ;
+TRUE : 'true' ;
+FALSE : 'false' ;
+MAIN : 'main' ;
+INT : 'int' ;
+FLOAT : 'float' ;
+BOOLEAN : 'boolean' ;
+
+ASSIGN : '=' ;
+LT : '<' ;
+GT : '>' ;
+LE : '<=' ;
+GE : '>=' ;
+EQ : '==' ;
+NE : '!=' ;
+AND : '&&' ;
+OR : '||' ;
+NOT : '!' ;
+PLUS : '+' ;
+MINUS : '-' ;
+TIMES : '*' ;
+DIVIDE : '/' ;
+
+SEMICOLON : ';' ;
+COMMA : ',' ;
+LPAREN : '(' ;
+RPAREN : ')' ;
+LBRACE : '{' ;
+RBRACE : '}' ;
+LBRACKET : '[' ;
+RBRACKET : ']' ;
+
+NUM : DIGIT+ ;
+REAL : DIGIT+ '.' DIGIT+ (('e'|'E') ('+'|'-')? DIGIT+)? ;
+ID : LETTER (LETTER | DIGIT)* ;
+
+fragment LETTER : [a-zA-Z] ;
+fragment DIGIT : [0-9] ;
+
+LINE_COMMENT : '//' ~[\r\n]* -> skip ;
+BLOCK_COMMENT : '/*' .*? '*/' -> skip ;
+WS : [ \t\r\n\f]+ -> skip ;
+UNRECOGNIZED : . ;
