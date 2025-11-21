@@ -1,6 +1,0 @@
-{
-    int x
-    float y[;
-    if x < 5) y = 2;
-    do { y = y + 1
-}
