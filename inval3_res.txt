@@ -1,0 +1,42 @@
+=== Dragon Book Parser - Appendix A.1 Implementation ===
+=== Grammar Rule Tracing and Symbol Table Management ===
+=== Error Recovery: Panic-mode + phrase-level ';' insertion ===
+
+program -> block
+block -> { decls stmts }
+>>> Added to symbol table: x -> { int } (scalar)
+decl -> type id_list ;
+decls -> decls decl
+decls -> epsilon
+>>> Found identifier: x -> { int } (scalar)
+loc -> id (lexeme = x)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+SYNTAX ERROR at line 3, column 6
+Message: extraneous input '-' expecting '='
+Offending token: '-' (type: 22)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+factor -> num (lexeme = 10)
+unary -> factor
+term -> unary
+expr -> term
+rel -> expr
+equality -> rel
+join -> equality
+bool -> join
+stmt -> loc = bool ;
+stmts -> stmts stmt
+stmts -> epsilon
+
+================================================================================
+=== FINAL SYMBOL TABLE STATE ===
+================================================================================
+GLOBAL â?? INNERMOST (Scope indices: 0 = global)
++---------------- SCOPE 0 ----------------+
+x -> { int } (scalar)
+================================================================================
+================================================================================
+
+============================================================
+=== PARSING RESULTS ===
+X Parsing completed with 1 errors
+============================================================

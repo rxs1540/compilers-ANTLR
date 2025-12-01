@@ -1,0 +1,77 @@
+=== Dragon Book Parser - Appendix A.1 Implementation ===
+=== Grammar Rule Tracing and Symbol Table Management ===
+=== Error Recovery: Panic-mode + phrase-level ';' insertion ===
+
+program -> block
+block -> { decls stmts }
+>>> Added to symbol table: x -> { int } (scalar)
+decl -> type id_list ;
+decls -> decls decl
+decls -> epsilon
+>>> Found identifier: x -> { int } (scalar)
+loc -> id (lexeme = x)
+factor -> num (lexeme = 5)
+unary -> factor
+term -> unary
+expr -> term
+rel -> expr
+equality -> rel
+join -> equality
+bool -> join
+stmt -> loc = bool ;
+stmts -> stmts stmt
+>>> Found identifier: x -> { int } (scalar)
+loc -> id (lexeme = x)
+factor -> loc
+unary -> factor
+term -> unary
+expr -> term
+factor -> num (lexeme = 0)
+unary -> factor
+term -> unary
+expr -> term
+rel -> expr > expr
+rel -> expr
+equality -> rel
+join -> equality
+bool -> join
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+SYNTAX ERROR at line 4, column 14
+Message: missing ')' at '{'
+Offending token: '{' (type: 29)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+block -> { decls stmts }
+>>> Entering new scope (Level 1)
+decls -> epsilon
+>>> Found identifier: x -> { int } (scalar)
+loc -> id (lexeme = x)
+factor -> num (lexeme = 1)
+unary -> factor
+term -> unary
+expr -> term
+rel -> expr
+equality -> rel
+join -> equality
+bool -> join
+stmt -> loc = bool ;
+stmts -> stmts stmt
+stmts -> epsilon
+>>> Exiting scope (returning to Level 0)
+stmt -> block
+stmt -> if ( bool ) stmt
+stmts -> stmts stmt
+stmts -> epsilon
+
+================================================================================
+=== FINAL SYMBOL TABLE STATE ===
+================================================================================
+GLOBAL â?? INNERMOST (Scope indices: 0 = global)
++---------------- SCOPE 0 ----------------+
+x -> { int } (scalar)
+================================================================================
+================================================================================
+
+============================================================
+=== PARSING RESULTS ===
+X Parsing completed with 1 errors
+============================================================

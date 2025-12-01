@@ -77,6 +77,39 @@ public class DragonErrorStrategy extends DefaultErrorStrategy {
         return true;
     }
 
+    private boolean handleCompoundAssign(Parser recognizer) {
+    TokenStream tokens = recognizer.getInputStream();
+    Token current  = tokens.LT(1);   // should be '='
+    Token previous = tokens.LT(-1);  // could be '+', '-', '*', '/'
+
+    if (previous == null || current == null) return false;
+
+    int prevType = previous.getType();
+    int currType = current.getType();
+
+    if (currType != DragonLangParser.ASSIGN) {
+        return false; // we only care about patterns like '+=', '-=', '*=', '/='
+    }
+
+    boolean isOp =
+            prevType == DragonLangParser.PLUS   ||
+            prevType == DragonLangParser.MINUS  ||
+            prevType == DragonLangParser.TIMES  ||
+            prevType == DragonLangParser.DIVIDE;
+
+    if (!isOp) return false;
+
+    String opLexeme = previous.getText();  // "+", "-", "*", "/"
+    System.out.println(
+        ">>> Phrase-level recovery: skipping stray '" + opLexeme +
+        "' in '" + opLexeme + "=...', treating it as simple '=' assignment"
+    );
+
+    // Let ANTLR treat '=' as if it were alone, and continue as 'loc = expr;'.
+    return true;
+   }
+
+
     // --------- Overridden reporting methods ----------
 
     //x = ) ; mismatched input ')' expecting {'true','false','(',ID,...}
@@ -132,7 +165,7 @@ public class DragonErrorStrategy extends DefaultErrorStrategy {
         Token offending = recognizer.getCurrentToken();
 
         // Case 1: "x += 10;" → skip '+', treat as 'x = 10;'
-        if (offending.getType() == DragonLangParser.ASSIGN && handlePlusAssign(recognizer)) {
+        if (offending.getType() == DragonLangParser.ASSIGN && handleCompoundAssign(recognizer)) {
             return super.recoverInline(recognizer);
         }
 

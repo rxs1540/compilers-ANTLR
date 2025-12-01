@@ -1,0 +1,5 @@
+java -jar antlr-4.7.2-complete.jar -no-listener -no-visitor DragonLang.g4 (compile g4 file)
+
+javac -cp ".;antlr-4.7.2-complete.jar" *.java(compile all the java files)
+
+java -cp ".;antlr-4.7.2-complete.jar" DragonLangTest valid.txt(test each file using the filename)

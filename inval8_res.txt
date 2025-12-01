@@ -1,0 +1,43 @@
+=== Dragon Book Parser - Appendix A.1 Implementation ===
+=== Grammar Rule Tracing and Symbol Table Management ===
+=== Error Recovery: Panic-mode + phrase-level ';' insertion ===
+
+program -> block
+block -> { decls stmts }
+>>> Added to symbol table: x -> { int } (scalar)
+decl -> type id_list ;
+decls -> decls decl
+decls -> epsilon
+>>> Found identifier: x -> { int } (scalar)
+loc -> id (lexeme = x)
+>>> Warning: Undeclared identifier 'y'
+loc -> id (lexeme = y)
+factor -> loc
+unary -> factor
+term -> unary
+factor -> num (lexeme = 1)
+unary -> factor
+term -> unary
+expr -> expr + term
+expr -> term
+rel -> expr
+equality -> rel
+join -> equality
+bool -> join
+stmt -> loc = bool ;
+stmts -> stmts stmt
+stmts -> epsilon
+
+================================================================================
+=== FINAL SYMBOL TABLE STATE ===
+================================================================================
+GLOBAL â?? INNERMOST (Scope indices: 0 = global)
++---------------- SCOPE 0 ----------------+
+x -> { int } (scalar)
+================================================================================
+================================================================================
+
+============================================================
+=== PARSING RESULTS ===
++ Parsing completed successfully with no errors
+============================================================

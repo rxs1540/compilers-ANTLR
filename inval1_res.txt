@@ -1,0 +1,35 @@
+=== Dragon Book Parser - Appendix A.1 Implementation ===
+=== Grammar Rule Tracing and Symbol Table Management ===
+=== Error Recovery: Panic-mode + phrase-level ';' insertion ===
+
+program -> block
+block -> { decls stmts }
+>>> Added to symbol table: x -> { int } (scalar)
+>>> Added to symbol table: y -> { int } (scalar)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+SYNTAX ERROR at line 2, column 12
+Message: mismatched input '[' expecting {';', ','}
+Offending token: '[' (type: 31)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+decls -> decls decl
+>>> Added to symbol table: z -> { float[2][3] } (array)
+decl -> type id_list ;
+decls -> decls decl
+decls -> epsilon
+stmts -> epsilon
+
+================================================================================
+=== FINAL SYMBOL TABLE STATE ===
+================================================================================
+GLOBAL â?? INNERMOST (Scope indices: 0 = global)
++---------------- SCOPE 0 ----------------+
+x -> { int } (scalar)
+y -> { int } (scalar)
+z -> { float[2][3] } (array)
+================================================================================
+================================================================================
+
+============================================================
+=== PARSING RESULTS ===
+X Parsing completed with 1 errors
+============================================================

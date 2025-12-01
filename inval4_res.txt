@@ -1,0 +1,38 @@
+=== Dragon Book Parser - Appendix A.1 Implementation ===
+=== Grammar Rule Tracing and Symbol Table Management ===
+=== Error Recovery: Panic-mode + phrase-level ';' insertion ===
+
+program -> block
+block -> { decls stmts }
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+SYNTAX ERROR at line 2, column 13
+Message: missing ']' at 'arr'
+Offending token: 'arr' (type: 35)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+>>> Added to symbol table: arr -> { float[10] } (array)
+decl -> type id_list ;
+decls -> decls decl
+decls -> epsilon
+>>> Phrase-level recovery: inserting missing ';' before '}'
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+SYNTAX ERROR at line 3, column 0
+Message: missing ';' at '}'
+Offending token: '}' (type: 30)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+stmt -> break ;
+stmts -> stmts stmt
+stmts -> epsilon
+
+================================================================================
+=== FINAL SYMBOL TABLE STATE ===
+================================================================================
+GLOBAL â?? INNERMOST (Scope indices: 0 = global)
++---------------- SCOPE 0 ----------------+
+arr -> { float[10] } (array)
+================================================================================
+================================================================================
+
+============================================================
+=== PARSING RESULTS ===
+X Parsing completed with 2 errors
+============================================================
